@@ -115,6 +115,10 @@
   .done{width:100%;margin-top:4px;padding:14px;}
   .done.ok{background:var(--good);}
   .foot{font-size:12px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.6;}
+  textarea.box{width:100%;min-height:80px;font-size:12px;margin-top:8px;border-radius:10px;border:1px solid var(--line);
+    background:var(--bg);color:var(--text);padding:8px;font-family:inherit;}
+  .flash{background:var(--good);color:#fff;border-radius:12px;padding:12px;font-weight:700;margin-bottom:12px;line-height:1.5;}
+  .btn:disabled{cursor:default;}
 </style>
 </head>
 <body>
@@ -130,17 +134,19 @@
     <button data-tab="A" class="on">대본 A</button>
     <button data-tab="B">변형 B</button>
     <button data-tab="C">표현</button>
-    <button data-tab="W">단어 발음</button>
+    <button data-tab="W">발음</button>
+    <button data-tab="K">약점</button>
     <button data-tab="H">연습법</button>
   </div>
 
   <div id="main"></div>
 
-  <p class="foot">버전 2026-09-11-4 · 수업 때마다 새 Day가 추가돼요. 한 달 뒤에도 계속 쓸 수 있어요.<br>
+  <p class="foot">버전 2026-09-11-5 · Day를 끝낼 때마다 다음 Day가 열려요. 한 달 뒤에도 계속 쓸 수 있어요.<br>
   핵심 표현은 <a id="vocabLink" href="단어장.html" style="color:var(--accent)"><b>📒 단어장</b></a>에 문장째 저장하세요.</p>
   <script>if (location.protocol !== "file:") document.getElementById("vocabLink").href = "vocab.html";</script>
 </div>
 
+<script src="lessons.js"></script>
 <script>
 (function(){
   "use strict";
@@ -152,61 +158,11 @@
   };
 
   /* =========================================================
-     수업 데이터 — 새 Day는 이 배열에 추가 (미국 영어 기준)
+     대본 데이터는 lessons.js (window.LESSONS, Day 1~31, 미국 영어)
      r: "A"/"B" 역할, en: 영어, ko: 뜻, pr: 한글 발음(감 잡기용), nt: 메모
      {ME} = B 역할 사람 영어 이름, {MEKO} = "제훈이에요/경아예요", {MEPR} = 한글 이름
      ========================================================= */
-  var DAYS = [
-    {
-      day: 1,
-      title: "이웃과 첫 인사",
-      enTitle: "Meeting a Neighbor",
-      place: "이사 온 첫날, 집 앞 복도에서 옆집 사람을 만났어요.",
-      roles: { A: "이웃", B: "나 (새로 이사 온 사람)" },
-      tipA: "한 명은 A(이웃), 한 명은 B(나). 다 외우면 🔁 역할 바꾸기로 한 번 더 하세요.",
-      tipB: "상대방이 A와 다르게 말해요. 모르는 말이 나와도 당황하지 마세요. 되묻거나, 웃으면서 \"Thank you!\" 하면 대부분 통해요.",
-      a: [
-        { r:"A", en:"Hi! Are you new here?", ko:"안녕하세요! 새로 오셨어요?", pr:"하이! 아- 유 뉴 히어?" },
-        { r:"B", en:"Yes, we just moved in.", ko:"네, 저희 막 이사 왔어요.", pr:"예스, 위 저슷 무브딘." },
-        { r:"A", en:"Welcome! I'm Tom. I live next door.", ko:"환영해요! 전 톰이에요. 옆집 살아요.", pr:"웰컴! 아임 탐. 아이 리브 넥스 도어." },
-        { r:"B", en:"Sorry, can you say that again?", ko:"죄송한데, 다시 한번 말해 주실래요?", pr:"쏘리, 캐뉴 세이 댓 어겐?", nt:"⭐ 이민 가서 제일 많이 쓸 문장" },
-        { r:"A", en:"Sure. I'm Tom. I live next door.", ko:"그럼요. 톰이에요. 옆집 살아요.", pr:"슈어. 아임 탐. 아이 리브 넥스 도어." },
-        { r:"B", en:"Oh, nice to meet you, Tom. I'm {ME}.", ko:"아, 만나서 반가워요, 톰. 저는 {MEKO}.", pr:"오, 나이스 투 미츄, 탐. 아임 {MEPR}.", nt:"✏️ 내 이름은 평소 내 발음 그대로 말해도 돼요" },
-        { r:"A", en:"Nice to meet you, too. See you around!", ko:"저도 반가워요. 또 봬요!", pr:"나이스 투 미츄 투. 씨 유 어라운드!" },
-        { r:"B", en:"See you!", ko:"또 봬요!", pr:"씨 유!" }
-      ],
-      b: [
-        { r:"A", en:"Hey there! Did you just move in?", ko:"안녕하세요! 막 이사 오셨어요?", pr:"헤이 데어! 디쥬 저슷 무빈?" },
-        { r:"B", en:"Yes, we just moved in.", ko:"네, 저희 막 이사 왔어요.", pr:"예스, 위 저슷 무브딘.", nt:"질문이 달라도 대답은 A랑 똑같이 하면 돼요" },
-        { r:"A", en:"Oh, welcome to the neighborhood! I'm Sarah. I live upstairs.", ko:"어머, 동네에 오신 걸 환영해요! 전 세라예요. 위층 살아요.", pr:"오, 웰컴 투 더 네이버훗! 아임 쎄라. 아이 리브 업스테어즈." },
-        { r:"B", en:"Sorry, can you speak slowly, please?", ko:"죄송한데, 천천히 말해 주실래요?", pr:"쏘리, 캐뉴 스픽 슬로울리, 플리즈?", nt:"⭐ 되묻기 두 번째 버전" },
-        { r:"A", en:"Of course. I'm Sarah. I live upstairs.", ko:"물론이죠. 세라예요. 위층 살아요.", pr:"어브 코스. 아임 쎄라. 아이 리브 업스테어즈." },
-        { r:"B", en:"Nice to meet you, Sarah. I'm {ME}.", ko:"만나서 반가워요, 세라. 저는 {MEKO}.", pr:"나이스 투 미츄, 쎄라. 아임 {MEPR}." },
-        { r:"A", en:"Nice to meet you! Let me know if you need anything.", ko:"반가워요! 필요한 거 있으면 말해요.", pr:"나이스 투 미츄! 렛 미 노우 이퓨 니드 애니띵.", nt:"처음 보는 문장이죠? 다 몰라도 괜찮아요 ↓" },
-        { r:"B", en:"Thank you so much!", ko:"정말 고마워요!", pr:"땡큐 쏘 머치!" }
-      ],
-      chunks: [
-        { en:"Sorry, can you say that again?", ko:"죄송한데, 다시 말해 주실래요?", star:true,
-          swaps:[ { en:"Sorry, can you speak slowly, please?", ko:"천천히 말해 주실래요?" },
-                  { en:"Sorry?", ko:"네? (짧게 되묻기)" } ] },
-        { en:"We just moved in.", ko:"저희 막 이사 왔어요.",
-          swaps:[ { en:"I just moved in.", ko:"저 막 이사 왔어요." },
-                  { en:"We just moved here from Korea.", ko:"저희 한국에서 막 이사 왔어요." } ] },
-        { en:"I live next door.", ko:"옆집 살아요.",
-          swaps:[ { en:"I live upstairs.", ko:"위층 살아요." },
-                  { en:"I live downstairs.", ko:"아래층 살아요." } ] },
-        { en:"Nice to meet you.", ko:"만나서 반가워요.",
-          swaps:[ { en:"Nice to meet you, too.", ko:"저도 반가워요. (대답할 때)" } ] },
-        { en:"See you around!", ko:"또 봬요! (오가다 또 봐요)",
-          swaps:[ { en:"See you!", ko:"또 봬요!" },
-                  { en:"Have a good day!", ko:"좋은 하루 보내세요!" } ] },
-        { bonus:true, en:"This is my wife, Kyung-a.", ko:"이쪽은 제 아내 경아예요. (제훈이 말할 때)",
-          swaps:[ { en:"This is my husband, Jehoon.", ko:"이쪽은 제 남편 제훈이에요. (경아가 말할 때)" } ] },
-        { bonus:true, en:"How's it going?", ko:"잘 지내요? (아주 흔한 가벼운 인사)",
-          swaps:[ { en:"Good, thanks! You?", ko:"좋아요, 고마워요! 그쪽은요? (대답)" } ] }
-      ]
-    }
-  ];
+  var DAYS = (window.LESSONS && window.LESSONS.length) ? window.LESSONS : [];
 
   /* ---------- 단어 발음: 한국인이 헷갈리는 짝 ---------- */
   var PAIRS = [
@@ -223,17 +179,35 @@
   ];
 
   /* ---------- 저장 (실패해도 동작) ---------- */
-  var LS_DONE = "script_done_v1", LS_DAY = "script_day_v1", LS_BWHO = "script_bwho_v1";
+  var LS_DONE = "script_done_v1", LS_DAY = "script_day_v1", LS_BWHO = "script_bwho_v1",
+      LS_OPEN = "script_unlocked_v1", LS_WEAK = "script_weak_v1", LS_WWHO = "script_weakwho_v1";
   function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
   function lsSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
-  var done = {};
-  try { done = JSON.parse(lsGet(LS_DONE)) || {}; } catch(e){ done = {}; }
+  function lsJson(k, def){ try { return JSON.parse(lsGet(k)) || def; } catch(e){ return def; } }
+  var done = lsJson(LS_DONE, {});
 
-  var dayIdx = DAYS.length - 1;
+  // 열린 Day: 한 번 열리면 다시 잠기지 않음 (열린 가장 큰 번호만 저장)
+  var lastDay = DAYS.length ? DAYS[DAYS.length - 1].day : 1;
+  var unlocked = Math.max(1, parseInt(lsGet(LS_OPEN), 10) || 1);
+  Object.keys(done).forEach(function(k){ if (done[k]) unlocked = Math.max(unlocked, +k + 1); });   // 예전 '외웠어요' 기록도 반영
+  unlocked = Math.min(unlocked, lastDay);
+
+  // 약점: 🎤에서 틀린 단어·문장을 사람별로 자동 저장
+  var weak = lsJson(LS_WEAK, {});
+  ["jh","ka"].forEach(function(k){
+    weak[k] = weak[k] || {};
+    weak[k].words = weak[k].words || {};
+    weak[k].lines = weak[k].lines || {};
+  });
+
+  var dayIdx = 0;
+  DAYS.forEach(function(d, i){ if (d.day <= unlocked) dayIdx = i; });   // 기본: 가장 최근에 열린 Day
   var savedDay = parseInt(lsGet(LS_DAY), 10);
-  DAYS.forEach(function(d, i){ if (d.day === savedDay) dayIdx = i; });
+  DAYS.forEach(function(d, i){ if (d.day === savedDay && d.day <= unlocked) dayIdx = i; });
 
   var bWho = lsGet(LS_BWHO) === "ka" ? "ka" : "jh";   // B(나) 역할을 맡은 사람
+  var weakWho = lsGet(LS_WWHO) === "ka" ? "ka" : "jh"; // 발음·약점 탭에서 연습하는 사람
+  var flash = "";
   var tab = "A", slow = false, showPr = false, hide = "", revealed = {};
   var results = {};    // 대본 줄 번호 → 발음 체크 결과
   var wresults = {};   // 단어 짝 번호 → 결과
@@ -241,10 +215,12 @@
 
   function who(r){ return r === "B" ? bWho : (bWho === "jh" ? "ka" : "jh"); }
   function me(){ return PEOPLE[bWho]; }
-  function fillEn(s){ return s.replace(/\{ME\}/g, me().en); }
-  function fillTts(s){ return s.replace(/\{ME\}/g, me().tts || me().en); }
-  function fillKo(s){ return s.replace(/\{MEKO\}/g, me().ko + me().cop); }
-  function fillPr(s){ return s.replace(/\{MEPR\}/g, me().ko); }
+  // {SP} = B 역할 사람의 배우자 (제훈이 B면 wife, 경아가 B면 husband)
+  var SPOUSE = { jh:{ en:"wife", ko:"아내", pr:"와이프" }, ka:{ en:"husband", ko:"남편", pr:"허즈번드" } };
+  function fillEn(s){ return s.replace(/\{ME\}/g, me().en).replace(/\{SP\}/g, SPOUSE[bWho].en); }
+  function fillTts(s){ return s.replace(/\{ME\}/g, me().tts || me().en).replace(/\{SP\}/g, SPOUSE[bWho].en); }
+  function fillKo(s){ return s.replace(/\{MEKO\}/g, me().ko + me().cop).replace(/\{SPKO\}/g, SPOUSE[bWho].ko); }
+  function fillPr(s){ return s.replace(/\{MEPR\}/g, me().ko).replace(/\{SPPR\}/g, SPOUSE[bWho].pr); }
 
   /* ---------- 음성 출력 (미국 영어) ---------- */
   var synth = window.speechSynthesis || null;
@@ -496,6 +472,77 @@
   }
   window.__gradeTest = function(en, alts){ return grade({ en:en }, alts); }; // 점검용
 
+  /* ---------- 약점 자동 수집 (틀린 단어·문장을 모아 다시 연습) ---------- */
+  function saveWeak(){ lsSet(LS_WEAK, JSON.stringify(weak)); }
+  function markWord(p, w, ok){
+    w = String(w || "").toLowerCase().replace(/[’]/g, "'").replace(/[^a-z'-]/g, "").replace(/^[-']+|[-']+$/g, "");
+    if (!weak[p] || w.length < 2) return;                 // a, I 같은 한 글자는 제외
+    var W = weak[p].words, x = W[w];
+    if (ok){ if (x){ x.good = (x.good || 0) + 1; if (x.good >= 3) delete W[w]; } }   // 3번 연속 맞히면 졸업
+    else {
+      if (!x) x = W[w] = { bad:0, good:0, day: DAYS.length ? day().day : 1 };
+      x.bad++; x.good = 0; x.last = Date.now();
+    }
+  }
+  function recordLine(line, res, dnum){
+    var p = res.who;
+    if (!weak[p]) return;
+    res.dw.forEach(function(d){
+      if (d.st === "bad") markWord(p, d.t, false);
+      else if (d.st === "ok") markWord(p, d.t, true);
+    });
+    dnum = dnum || day().day;
+    var key = dnum + "|" + line.en, L = weak[p].lines, x = L[key];
+    if (res.score < 70){
+      if (!x) x = L[key] = { en:line.en, ko:line.ko, r:line.r, day:dnum, bad:0, good:0 };
+      x.bad++; x.good = 0; x.last = Date.now();
+    } else if (x && res.score >= 90){ x.good = (x.good || 0) + 1; if (x.good >= 2) delete L[key]; }   // 2번 연속 잘하면 졸업
+    saveWeak();
+  }
+  function weakCount(p){ return Object.keys(weak[p].words).length + Object.keys(weak[p].lines).length; }
+  function byBad(M){ return function(a, b){ return (M[b].bad - M[a].bad) || ((M[b].last || 0) - (M[a].last || 0)); }; }
+  function weakWordList(p){ var W = weak[p].words; return Object.keys(W).sort(byBad(W)); }
+  function weakLineList(p){ var L = weak[p].lines; return Object.keys(L).sort(byBad(L)); }
+  function fillFor(p, s){
+    return String(s).replace(/\{ME\}/g, PEOPLE[p].en).replace(/\{MEKO\}/g, PEOPLE[p].ko + PEOPLE[p].cop)
+      .replace(/\{SP\}/g, SPOUSE[p].en).replace(/\{SPKO\}/g, SPOUSE[p].ko);
+  }
+
+  /* ---------- 진도 백업 · 복구 ---------- */
+  function backupCode(){
+    var json = JSON.stringify({ v:1, unlocked:unlocked, done:done, weak:weak });
+    try { return "EN1:" + btoa(unescape(encodeURIComponent(json))); } catch(e){ return json; }
+  }
+  function restoreCode(s){
+    s = String(s || "").replace(/\s+/g, "");
+    var json = s.indexOf("EN1:") === 0 ? decodeURIComponent(escape(atob(s.slice(4)))) : s;
+    var o = JSON.parse(json);
+    if (!o || o.v !== 1) throw new Error("형식");
+    unlocked = Math.min(Math.max(unlocked, parseInt(o.unlocked, 10) || 1), lastDay);   // 합칠 때도 잠기지 않음
+    Object.keys(o.done || {}).forEach(function(k){ if (o.done[k]) done[k] = true; });
+    ["jh","ka"].forEach(function(p){
+      var src = (o.weak && o.weak[p]) || {};
+      ["words","lines"].forEach(function(kind){
+        var S = src[kind] || {}, D = weak[p][kind];
+        Object.keys(S).forEach(function(k){
+          if (!D[k]) D[k] = S[k];
+          else D[k].bad = Math.max(D[k].bad || 0, S[k].bad || 0);
+        });
+      });
+    });
+    lsSet(LS_OPEN, String(unlocked));
+    lsSet(LS_DONE, JSON.stringify(done));
+    saveWeak();
+  }
+  function copyText(text, msgEl){
+    function fallback(){
+      if (msgEl) msgEl.innerHTML = '아래 글을 길게 눌러 전체 선택 → 복사하세요.<textarea class="box" readonly>' + esc(text) + '</textarea>';
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ if (msgEl) msgEl.innerHTML = '✅ 복사됐어요!'; }, fallback);
+    } else fallback();
+  }
+
   function applyResult(i, line, r){
     if (r.err === "aborted") return;
     var res = r.err ? { err:r.err, msg:errMsg(r.err) } : grade(line, r.alts);
@@ -503,6 +550,7 @@
     if (results[i] && results[i].audio){ try { URL.revokeObjectURL(results[i].audio); } catch(e){} }
     res.audio = r.audio;
     results[i] = res;
+    if (!res.err) recordLine(line, res);
     var box = document.getElementById("res" + i);
     if (box) box.innerHTML = resHtml(i);
   }
@@ -566,7 +614,10 @@
       } else {
         var hw = words(r.alts[0]);
         var tw = words(target)[0], ow = words(other)[0];
-        if (hw.indexOf(tw) >= 0 && hw.indexOf(ow) < 0){
+        var correct = hw.indexOf(tw) >= 0 && hw.indexOf(ow) < 0;
+        markWord(weakWho, target, correct);
+        saveWeak();
+        if (correct){
           html = '✅ <b>' + esc(target) + '</b>(으)로 정확히 들렸어요!';
         } else if (hw.indexOf(ow) >= 0){
           html = '❌ <b style="color:var(--bad)">' + esc(other) + '</b>(으)로 들렸어요. 아래 팁을 보고 다시!';
@@ -725,8 +776,9 @@
   var daySel = document.getElementById("daySel");
   function renderDaySel(){
     daySel.innerHTML = DAYS.map(function(d, i){
-      return '<option value="' + i + '"' + (i === dayIdx ? " selected" : "") + '>Day ' + d.day + ' · ' +
-        esc(d.title) + (done[d.day] ? " ✓" : "") + '</option>';
+      var locked = d.day > unlocked;
+      return '<option value="' + i + '"' + (i === dayIdx ? " selected" : "") + (locked ? " disabled" : "") + '>' +
+        (locked ? "🔒 " : "") + 'Day ' + d.day + ' · ' + esc(d.title) + (done[d.day] ? " ✓" : "") + '</option>';
     }).join("");
   }
   daySel.addEventListener("change", function(){
@@ -764,15 +816,35 @@
   }
 
   function doneBtn(){
-    var ok = !!done[day().day];
-    return '<button class="btn done' + (ok ? " ok" : "") + '" id="doneBtn">' +
-      (ok ? "✓ 외웠어요! (다시 누르면 취소)" : "오늘 대본 다 외웠어요") + '</button>';
+    var d = day(), next = DAYS[dayIdx + 1];
+    if (!done[d.day]) return '<button class="btn done" id="doneBtn">오늘 대본 다 외웠어요 → 다음 Day 열기</button>';
+    return '<button class="btn done ok" disabled>✓ 외웠어요! 언제든 다시 복습할 수 있어요</button>' +
+      (next ? '<button class="btn ghost done" id="nextBtn" style="margin-top:8px">Day ' + next.day + ' · ' + esc(next.title) + ' 로 가기 →</button>'
+            : '<p class="small" style="text-align:center">🎓 마지막 Day까지 다 했어요! 약점 탭과 예전 Day로 계속 복습하세요.</p>');
+  }
+  function flashHtml(){
+    if (!flash) return "";
+    var h = '<div class="flash">' + flash + '</div>';
+    flash = "";
+    return h;
+  }
+  function weakBanner(){
+    var a = weakCount("jh"), b = weakCount("ka");
+    if (!a && !b) return "";
+    return '<div class="tip" style="background:var(--b2);color:var(--b)">🎯 약점이 모여 있어요 (제훈 ' + a + ' · 경아 ' + b +
+      '). <b>약점</b> 탭에서 먼저 3분 연습하고 시작해요!</div>';
+  }
+  function personToggle(){
+    return '<div class="ctrl"><span class="lbl">지금 연습하는 사람</span>' + ["jh","ka"].map(function(k){
+      return '<button class="btn ghost sm' + (weakWho === k ? " on" : "") + '" data-wwho="' + k + '">' + PEOPLE[k].ko + '</button>';
+    }).join("") + '</div>';
   }
 
   function renderScript(){
     var d = day(), ls = lines();
     var html = '<div class="card">';
-    html += browserWarn() + '<div class="tip">' + esc(tab === "B" ? d.tipB : d.tipA) + '</div>';
+    html += flashHtml() + browserWarn() + (tab === "A" ? weakBanner() : "") +
+      '<div class="tip">' + esc(tab === "B" ? d.tipB : d.tipA) + '</div>';
     html += '<div class="ctrl">' +
       '<button class="btn" id="playAll">▶ 전체 듣기</button>' +
       '<button class="btn ghost" id="stopBtn">■ 멈춤</button>' +
@@ -819,9 +891,9 @@
     var bonusShown = false;
     day().chunks.forEach(function(c){
       if (c.bonus && !bonusShown){ bonusShown = true; html += '<div class="bonus">➕ 보너스: 여유 있으면</div>'; }
-      html += '<div class="chunk">' + chunkRow(c.en, c.ko, c.star ? '<span class="star">생존 표현</span>' : '');
+      html += '<div class="chunk">' + chunkRow(fillEn(c.en), fillKo(c.ko), c.star ? '<span class="star">생존 표현</span>' : '');
       if (c.swaps && c.swaps.length){
-        html += '<div class="swap">' + c.swaps.map(function(s){ return chunkRow(s.en, s.ko); }).join("") + '</div>';
+        html += '<div class="swap">' + c.swaps.map(function(s){ return chunkRow(fillEn(s.en), fillKo(s.ko)); }).join("") + '</div>';
       }
       html += '</div>';
     });
@@ -830,7 +902,7 @@
   }
 
   function renderWords(){
-    var html = '<div class="card">' + browserWarn() + '<div class="tip">한국 사람이 제일 헷갈리는 소리 짝이에요. 🔊로 두 단어 차이를 듣고, 🎤로 한 단어씩 말해 보세요. ' +
+    var html = '<div class="card">' + browserWarn() + personToggle() + '<div class="tip">한국 사람이 제일 헷갈리는 소리 짝이에요. 🔊로 두 단어 차이를 듣고, 🎤로 한 단어씩 말해 보세요. ' +
       '단어 하나는 기계가 문맥으로 봐줄 수 없어서 <b>문장보다 훨씬 엄격해요</b>. 진짜 발음 연습은 여기서!</div>' +
       '<div class="vs" id="vs"></div>';
     PAIRS.forEach(function(pr, p){
@@ -846,6 +918,84 @@
     return html;
   }
 
+  /* ---------- 약점 탭 ---------- */
+  var kWords = [], kLines = [], kres = {};
+  function renderWeak(){
+    var p = weakWho;
+    kWords = weakWordList(p).slice(0, 20);
+    kLines = weakLineList(p).slice(0, 10);
+    var html = '<div class="card">' + browserWarn() +
+      '<div class="tip">🤖 대본·발음 탭에서 🎤로 연습할 때 <b>틀린 단어와 문장이 여기 자동으로 모여요</b>. ' +
+      '단어는 3번, 문장은 2번 연속 잘하면 목록에서 빠져요(졸업 🎓). 매일 여기부터 3분!</div>' +
+      personToggle() + '<div class="vs" id="vs"></div>';
+    if (!kWords.length && !kLines.length){
+      html += '<p class="small" style="text-align:center;padding:24px 0">아직 모인 약점이 없어요 👏<br>대본에서 🎤로 연습하면 틀린 단어가 여기 쌓여요.</p>';
+    }
+    if (kWords.length){
+      html += '<div class="bonus">🔤 자주 틀린 단어 · ' + PEOPLE[p].ko + '</div>';
+      kWords.forEach(function(w, i){
+        var x = weak[p].words[w];
+        html += '<div class="chunk"><div class="crow"><div><div class="en">' + esc(w) + '</div>' +
+          '<div class="ko">틀림 ' + x.bad + '번 · 연속 맞힘 ' + (x.good || 0) + '/3 · Day ' + x.day + '</div></div>' +
+          '<div class="acts" style="flex-direction:row"><button class="say" data-say="' + esc(w) + '" aria-label="듣기">🔊</button>' +
+          '<button class="mic" data-kmic="w' + i + '" aria-label="발음 체크">🎤</button></div></div>' +
+          '<div class="nt">' + tipsFor(w).map(esc).join(" / ") + '</div>' +
+          '<div id="kw' + i + '">' + (kres["w:" + w] || "") + '</div></div>';
+      });
+    }
+    if (kLines.length){
+      html += '<div class="bonus">💬 다시 연습할 문장 · ' + PEOPLE[p].ko + '</div>';
+      kLines.forEach(function(key, i){
+        var x = weak[p].lines[key];
+        html += '<div class="chunk"><div class="crow"><div><div class="en">' + esc(fillFor(p, x.en)) + '</div>' +
+          '<div class="ko">' + esc(fillFor(p, x.ko)) + ' · Day ' + x.day + '</div></div>' +
+          '<div class="acts" style="flex-direction:row"><button class="say" data-ksay="' + i + '" aria-label="듣기">🔊</button>' +
+          '<button class="mic" data-kmic="l' + i + '" aria-label="발음 체크">🎤</button></div></div>' +
+          '<div id="kl' + i + '">' + (kres["l:" + key] || "") + '</div></div>';
+      });
+    }
+    html += '<div class="ctrl" style="margin-top:14px"><button class="btn ghost sm" id="copyWeak">📋 약점 목록 복사</button></div>' +
+      '<p class="small">선생님(Claude)과 수업할 수 있는 동안엔 복사해서 보내 주세요. 약점에 맞춘 연습을 더 만들어 드려요.</p>' +
+      '<div class="small" id="copyWeakMsg"></div></div>';
+    return html;
+  }
+  function checkWeak(kind, i){
+    stop();
+    var my = token, p = weakWho, item = kind === "w" ? kWords[i] : kLines[i];
+    if (!item) return;
+    var btn = document.querySelector('[data-kmic="' + kind + i + '"]');
+    if (btn) btn.classList.add("rec");
+    listen(function(r){
+      if (my !== token) return;
+      if (btn) btn.classList.remove("rec");
+      if (r.err === "aborted") return;
+      var html;
+      if (r.err){
+        html = '⚠️ ' + esc(errMsg(r.err)) + '<br>' + DIAG;
+      } else if (kind === "w"){
+        var hw = words(r.alts[0]);
+        var ok = words(item).every(function(t){ return hw.indexOf(t) >= 0; });
+        markWord(p, item, ok);
+        saveWeak();
+        var left = weak[p].words[item];
+        html = ok ? '✅ 정확히 들렸어요!' + (left ? ' (연속 ' + left.good + '/3)' : ' 🎓 3번 연속 맞혀서 졸업!')
+                  : '❌ "' + esc(r.alts[0]) + '"(으)로 들렸어요. 🔊 듣고 팁대로 다시!';
+      } else {
+        var x = weak[p].lines[item];
+        if (!x) return;
+        var res = grade({ en:x.en }, r.alts);
+        res.who = p;
+        recordLine(x, res, x.day);
+        html = '알아들음 ' + res.score + '% · ' +
+          res.dw.map(function(d){ return '<span class="w-' + d.st + '">' + esc(d.t) + '</span>'; }).join(" ") +
+          (weak[p].lines[item] ? '' : '<br>🎓 2번 연속 잘해서 졸업!');
+      }
+      kres[kind + ":" + item] = '<div class="res">' + html + '</div>';
+      var box = document.getElementById("k" + kind + i);
+      if (box) box.innerHTML = kres[kind + ":" + item];
+    });
+  }
+
   function renderHowto(){
     return '<div class="card howto">' +
       '<h3>하루 연습 순서 (20~30분)</h3>' +
@@ -853,13 +1003,15 @@
       '<li>👂 <b>듣기</b>: <b>▶ 전체 듣기</b>로 3번 들어요. 한국어 뜻을 보면서요.</li>' +
       '<li>🗣️ <b>섀도잉</b>: 한 줄씩 🔊를 누르고, 듣자마자 <b>똑같이 따라 말해요</b>. 줄마다 3번씩.</li>' +
       '<li>🎤 <b>발음 체크</b>: 줄 옆 🎤를 누르고 말해요. 기계가 못 알아들은 단어가 <b style="color:var(--bad)">빨간색</b>으로 나와요. ▶ 내 목소리와 🔊 원어민을 번갈아 들어 보세요.</li>' +
-      '<li>🔤 <b>단어 발음</b>: 빨간 단어에 th, r, l, v, f가 있으면 <b>단어 발음</b> 탭에서 한 단어씩 연습해요. 여기가 제일 정확해요.</li>' +
+      '<li>🔤 <b>발음</b>: 빨간 단어에 th, r, l, v, f가 있으면 <b>발음</b> 탭에서 한 단어씩 연습해요. 여기가 제일 정확해요.</li>' +
+      '<li>🤖 <b>약점</b>: 🎤에서 틀린 단어·문장이 <b>약점</b> 탭에 자동으로 모여요. 다음 날엔 약점 탭부터 3분!</li>' +
+      '<li>✅ 다 외우면 맨 아래 <b>오늘 대본 다 외웠어요</b>를 눌러요. 다음 Day가 열리고, 열린 Day는 계속 열려 있어서 언제든 복습할 수 있어요.</li>' +
       '<li>👫 <b>대화 모드</b>: 폰을 두 사람 사이에 두고, 제훈·경아가 번갈아 말하면 줄마다 체크해요. 끝나면 각자 연습할 단어를 알려 줘요. 🔁 역할 바꿔서 한 번 더.</li>' +
       '<li>🔀 <b>변형 B</b>: 상대 대사가 달라져도 대답할 수 있는지 확인해요. 모르는 말이 나오면 되묻기 표현을 써요!</li>' +
       '</ol>' +
       '<h3>🎤 발음 체크, 이것만 알아 두세요</h3>' +
       '<p class="small">• 원리: 기계가 내 말을 글자로 받아 적어서 대본과 비교해요. <b>기계가 알아들으면 원어민도 알아들을 가능성이 높아요.</b> 그래서 점수 이름이 "알아들음 %"예요.</p>' +
-      '<p class="small">• 한계: 억양과 강세는 체크 못 해요. 문장은 기계가 앞뒤 문맥으로 알아채서 후하게 나올 때가 있어요 (예: "sank you"도 thank you로 통과할 수 있음). 반대로 제대로 말했는데 빨간색이 나올 때도 있어요. <b>점수에 너무 신경 쓰지 말고</b>, 정확한 확인은 단어 발음 탭에서 하세요.</p>' +
+      '<p class="small">• 한계: 억양과 강세는 체크 못 해요. 문장은 기계가 앞뒤 문맥으로 알아채서 후하게 나올 때가 있어요 (예: "sank you"도 thank you로 통과할 수 있음). 반대로 제대로 말했는데 빨간색이 나올 때도 있어요. <b>점수에 너무 신경 쓰지 말고</b>, 정확한 확인은 발음 탭에서 하세요.</p>' +
       '<p class="small">• 조용한 곳에서, 폰을 입에서 한 뼘 거리에 두고, 한 사람씩 또렷하게. 🔊 소리가 나오는 동안엔 말하지 마세요 (기계 소리가 다시 들어가요).</p>' +
       '<p class="small">• 인터넷이 필요해요. 목소리는 글자로 바꾸기 위해 구글·애플·마이크로소프트 음성 인식 서버로 보내져요. 녹음은 이 화면에서만 들을 수 있고 따로 저장되지 않아요.</p>' +
       '<h3>📱 어디서 열까요</h3>' +
@@ -870,16 +1022,28 @@
       '<p class="small">🔧 🎤가 계속 안 되면 <a href="mic-test.html" style="color:var(--accent)">마이크 진단</a> 페이지에서 원인을 확인하고, 결과를 복사해 선생님께 보내 주세요.</p>' +
       '<p class="small">🔄 새 대본이 안 보이면 10분쯤 뒤에 새로고침하세요. 맨 아래 "버전" 날짜로 새 버전인지 확인할 수 있어요.</p>' +
       '<p class="small">⚠️ <b>한글 발음</b>은 처음 감 잡을 때만 보세요. 계속 보면 한국식 발음이 굳어요.</p>' +
+      '<h3>💾 진도 백업 (폰을 바꾸거나 기록이 지워졌을 때)</h3>' +
+      '<p class="small">열린 Day, 외운 표시, 약점 목록은 <b>이 폰에만</b> 저장돼요. 가끔 백업 코드를 복사해서 카톡 "나와의 채팅"에 붙여 두세요. ' +
+      '다른 폰에 붙여넣으면 진도를 옮기거나 두 폰의 기록을 합칠 수 있어요. 복구해도 이미 열린 Day는 잠기지 않아요.</p>' +
+      '<div class="ctrl"><button class="btn ghost sm" id="bkCopy">📋 백업 코드 복사</button></div>' +
+      '<div class="small" id="bkMsg"></div>' +
+      '<textarea class="box" id="bkBox" placeholder="여기에 백업 코드를 붙여넣고 [복구하기]를 누르세요"></textarea>' +
+      '<div class="ctrl" style="margin-top:6px"><button class="btn ghost sm" id="bkLoad">복구하기</button></div>' +
       '</div>';
   }
 
   function render(){
+    var main = document.getElementById("main");
+    if (!DAYS.length){
+      main.innerHTML = '<div class="card">⚠️ 대본 파일(lessons.js)을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.</div>';
+      return;
+    }
     renderDaySel();
     renderSit();
-    var main = document.getElementById("main");
     if (tab === "A" || tab === "B") main.innerHTML = renderScript();
     else if (tab === "C") main.innerHTML = renderChunks();
     else if (tab === "W") main.innerHTML = renderWords();
+    else if (tab === "K") main.innerHTML = renderWeak();
     else main.innerHTML = renderHowto();
     renderVoice();
   }
@@ -905,9 +1069,63 @@
     if (t.id === "prBtn"){ stop(); showPr = !showPr; render(); return; }
     if (t.id === "doneBtn"){
       var k = day().day;
-      if (done[k]) delete done[k]; else done[k] = true;
+      done[k] = true;
       lsSet(LS_DONE, JSON.stringify(done));
+      if (k + 1 > unlocked && k < lastDay){
+        unlocked = k + 1;
+        lsSet(LS_OPEN, String(unlocked));
+        flash = "🎉 Day " + unlocked + "가 열렸어요! 열린 Day는 계속 열려 있어서 언제든 복습할 수 있어요.";
+      }
       render();
+      return;
+    }
+    if (t.id === "nextBtn"){
+      stop();
+      dayIdx = Math.min(dayIdx + 1, DAYS.length - 1);
+      lsSet(LS_DAY, String(day().day));
+      tab = "A";
+      tabBtns.forEach(function(x){ x.classList.toggle("on", x.getAttribute("data-tab") === "A"); });
+      revealed = {}; results = {};
+      render();
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (t.id === "copyWeak"){
+      var txt = "[약점 목록]\n";
+      ["jh","ka"].forEach(function(p){
+        var ws = weakWordList(p), ls2 = weakLineList(p);
+        txt += PEOPLE[p].ko + " — 단어: " + (ws.length ? ws.slice(0, 30).map(function(w){ return w + "(" + weak[p].words[w].bad + ")"; }).join(", ") : "없음") + "\n";
+        ls2.slice(0, 15).forEach(function(key){ var x = weak[p].lines[key]; txt += "  Day" + x.day + ": " + x.en + " (" + x.bad + ")\n"; });
+      });
+      copyText(txt, document.getElementById("copyWeakMsg"));
+      return;
+    }
+    if (t.id === "bkCopy"){ copyText(backupCode(), document.getElementById("bkMsg")); return; }
+    if (t.id === "bkLoad"){
+      var msg = document.getElementById("bkMsg");
+      try {
+        restoreCode(document.getElementById("bkBox").value);
+        msg.innerHTML = "✅ 복구했어요! Day " + unlocked + "까지 열려 있어요.";
+        renderDaySel();
+      } catch(err){ msg.innerHTML = "⚠️ 백업 코드가 올바르지 않아요. 복사한 글 전체를 붙여넣어 주세요."; }
+      return;
+    }
+    if (t.hasAttribute("data-wwho")){
+      stop();
+      weakWho = t.getAttribute("data-wwho");
+      lsSet(LS_WWHO, weakWho);
+      kres = {};
+      render();
+      return;
+    }
+    if (t.hasAttribute("data-kmic")){
+      var kk = t.getAttribute("data-kmic");
+      return checkWeak(kk.charAt(0), parseInt(kk.slice(1), 10));
+    }
+    if (t.hasAttribute("data-ksay")){
+      stop();
+      var kx = weak[weakWho].lines[kLines[parseInt(t.getAttribute("data-ksay"), 10)]];
+      if (kx) speak({ en: kx.en.replace(/\{ME\}/g, PEOPLE[weakWho].tts || PEOPLE[weakWho].en), r: kx.r });
       return;
     }
     if (t.hasAttribute("data-hide")){ stop(); hide = t.getAttribute("data-hide"); revealed = {}; render(); return; }
