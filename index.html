@@ -84,6 +84,7 @@
   .tipl{font-size:13px;margin-top:4px;color:var(--text);}
   .play{border:0;background:var(--accent2);color:var(--accent);border-radius:8px;padding:7px 11px;
     font-weight:700;cursor:pointer;font-size:13px;margin:6px 6px 0 0;font-family:inherit;}
+  .play.rec{background:var(--bad);color:#fff;animation:pulse 1s infinite;}
   .sum{margin-top:12px;padding:14px;border-radius:12px;background:var(--b2);font-size:14px;line-height:1.7;}
   .sum:empty{display:none;}
   .vs{font-size:12px;color:var(--muted);margin:2px 0 12px;line-height:1.5;}
@@ -135,7 +136,7 @@
 
   <div id="main"></div>
 
-  <p class="foot">버전 2026-09-11 · 수업 때마다 새 Day가 추가돼요. 한 달 뒤에도 계속 쓸 수 있어요.<br>
+  <p class="foot">버전 2026-09-11-2 · 수업 때마다 새 Day가 추가돼요. 한 달 뒤에도 계속 쓸 수 있어요.<br>
   핵심 표현은 <a id="vocabLink" href="단어장.html" style="color:var(--accent)"><b>📒 단어장</b></a>에 문장째 저장하세요.</p>
   <script>if (location.protocol !== "file:") document.getElementById("vocabLink").href = "vocab.html";</script>
 </div>
@@ -322,15 +323,18 @@
 
   /* ---------- 음성 인식 (발음 체크) ---------- */
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
-  var micStream = null, currentRec = null, noRecord = false, recFail = 0;
+  // 안드로이드는 녹음과 음성 인식이 마이크를 같이 못 써서 인식만 (녹음은 🎙 버튼으로 따로)
+  var IS_ANDROID = /Android/i.test(navigator.userAgent || "");
+  var currentRec = null, noRecord = IS_ANDROID, recFail = 0, recState = null;
 
+  function stopTracks(s){
+    if (!s) return;
+    try { s.getTracks().forEach(function(t){ t.stop(); }); } catch(e){}
+  }
+  // 매번 새로 받고 끝나면 바로 놓아줌 (마이크를 계속 붙잡으면 인식이 막힘)
   function getStream(){
-    if (noRecord) return Promise.resolve(null);
-    if (micStream) return Promise.resolve(micStream);
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.resolve(null);
-    return navigator.mediaDevices.getUserMedia({ audio:true })
-      .then(function(s){ micStream = s; return s; })
-      .catch(function(){ return null; });
+    if (noRecord || !window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.resolve(null);
+    return navigator.mediaDevices.getUserMedia({ audio:true }).catch(function(){ return null; });
   }
 
   // cb({ alts:[...], err:null|"코드", audio:url|null })
@@ -366,7 +370,7 @@
           recFail++;
           if (recFail >= 2){ noRecord = true; recFail = 0; err = "rec-conflict"; }
         }
-        function fin(url){ cb({ alts:alts, err: alts.length ? null : (err || "no-speech"), audio:url }); }
+        function fin(url){ stopTracks(stream); cb({ alts:alts, err: alts.length ? null : (err || "no-speech"), audio:url }); }
         if (rec && rec.state !== "inactive"){
           rec.onstop = function(){
             fin(chunks.length ? URL.createObjectURL(new Blob(chunks, { type: rec.mimeType || "audio/webm" })) : null);
@@ -385,9 +389,9 @@
     "not-allowed": "마이크 사용이 막혀 있어요. 주소창 옆 아이콘이나 브라우저 설정에서 마이크를 '허용'해 주세요.",
     "service-not-allowed": "이 브라우저에서 음성 인식이 막혀 있어요. 안드로이드는 Chrome, 아이폰은 Safari로 열어 보세요.",
     "network": "음성 인식은 인터넷이 필요해요. 연결을 확인해 주세요.",
-    "no-speech": "소리가 안 들렸어요. 🎤를 누르고 바로 또렷하게 말해 보세요.",
+    "no-speech": "소리가 안 들렸어요. 🎤가 빨갛게 깜빡일 때 바로, 폰에 가까이 대고 또렷하게 말해 보세요.",
     "audio-capture": "마이크를 못 찾았어요. (PC라면 마이크나 헤드셋을 연결해야 해요)",
-    "rec-conflict": "녹음과 음성 인식이 부딪히는 것 같아요. 녹음은 끄고 인식만 할게요. 다시 눌러 주세요."
+    "rec-conflict": "녹음과 음성 인식이 부딪히는 것 같아요. 🎤는 인식만 할게요. 다시 눌러 주세요. (내 목소리는 결과 아래 🎙 버튼으로 따로 녹음)"
   };
   var FATAL = { "unsupported":1, "not-allowed":1, "service-not-allowed":1, "network":1, "audio-capture":1 };
   function errMsg(e){ return ERR[e] || ("인식 실패 (" + e + "). 다시 해 보세요."); }
@@ -498,7 +502,8 @@
     r.tips.forEach(function(tp){
       html += '<div class="tipl"><b>' + esc(tp.w) + '</b> — ' + tp.t.map(esc).join(" / ") + '</div>';
     });
-    if (r.audio) html += '<button class="play" data-audio="' + i + '">▶ 내 목소리</button>';
+    html += r.audio ? '<button class="play" data-audio="' + i + '">▶ 내 목소리</button>'
+                    : '<button class="play" data-recline="' + i + '">🎙 내 목소리 녹음</button>';
     html += '<button class="play" data-line="' + i + '">🔊 원어민</button></div>';
     return html;
   }
@@ -561,12 +566,42 @@
   function wresHtml(p){
     var w = wresults[p];
     if (!w) return "";
-    return '<div class="res">' + w.html +
-      (w.audio ? '<br><button class="play" data-waudio="' + p + '">▶ 내 목소리</button>' : '') + '</div>';
+    return '<div class="res">' + w.html + '<br>' +
+      (w.audio ? '<button class="play" data-waudio="' + p + '">▶ 내 목소리</button>'
+               : '<button class="play" data-recword="' + p + '">🎙 내 목소리 녹음</button>') + '</div>';
+  }
+
+  /* ---------- 녹음만 하기 (인식 없이, 내 목소리 비교용) ---------- */
+  function endRec(){
+    if (!recState) return;
+    var s = recState; recState = null;
+    clearTimeout(s.timer);
+    try { if (s.rec.state !== "inactive") s.rec.stop(); } catch(e){}
+  }
+  function recordOnly(btn, onUrl){
+    if (recState){ var same = recState.btn === btn; endRec(); if (same) return; }   // 두 번째 누르면 녹음 끝
+    stop();
+    if (!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      btn.textContent = "이 브라우저는 녹음이 안 돼요"; return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio:true }).then(function(stream){
+      var chunks = [], rec;
+      try { rec = new MediaRecorder(stream); } catch(e){ stopTracks(stream); btn.textContent = "녹음 실패"; return; }
+      rec.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = function(){
+        stopTracks(stream);
+        onUrl(chunks.length ? URL.createObjectURL(new Blob(chunks, { type: rec.mimeType || "audio/webm" })) : null);
+      };
+      recState = { rec:rec, btn:btn, timer:setTimeout(endRec, 10000) };
+      btn.classList.add("rec");
+      btn.textContent = "■ 말한 뒤 눌러서 끝내기";
+      rec.start();
+    }).catch(function(){ btn.textContent = "마이크를 '허용'해 주세요"; });
   }
 
   /* ---------- 재생 · 정지 ---------- */
   function stop(){
+    endRec();
     token++;
     if (synth) synth.cancel();
     if (currentRec){ try { currentRec.abort(); } catch(e){} currentRec = null; }
@@ -861,6 +896,24 @@
     if (t.hasAttribute("data-wmic")){
       var ps = t.getAttribute("data-wmic").split(":");
       return checkWord(parseInt(ps[0], 10), ps[1]);
+    }
+    if (t.hasAttribute("data-recline")){
+      var ri = t.getAttribute("data-recline");
+      return recordOnly(t, function(url){
+        var r0 = results[ri]; if (!r0) return;
+        if (r0.audio){ try { URL.revokeObjectURL(r0.audio); } catch(e){} }
+        r0.audio = url;
+        var box = document.getElementById("res" + ri); if (box) box.innerHTML = resHtml(ri);
+      });
+    }
+    if (t.hasAttribute("data-recword")){
+      var wi = t.getAttribute("data-recword");
+      return recordOnly(t, function(url){
+        var w0 = wresults[wi]; if (!w0) return;
+        if (w0.audio){ try { URL.revokeObjectURL(w0.audio); } catch(e){} }
+        w0.audio = url;
+        var box = document.getElementById("wres" + wi); if (box) box.innerHTML = wresHtml(wi);
+      });
     }
     if (t.hasAttribute("data-audio") || t.hasAttribute("data-waudio")){
       stop();
