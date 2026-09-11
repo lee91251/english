@@ -136,7 +136,7 @@
 
   <div id="main"></div>
 
-  <p class="foot">버전 2026-09-11-2 · 수업 때마다 새 Day가 추가돼요. 한 달 뒤에도 계속 쓸 수 있어요.<br>
+  <p class="foot">버전 2026-09-11-3 · 수업 때마다 새 Day가 추가돼요. 한 달 뒤에도 계속 쓸 수 있어요.<br>
   핵심 표현은 <a id="vocabLink" href="단어장.html" style="color:var(--accent)"><b>📒 단어장</b></a>에 문장째 저장하세요.</p>
   <script>if (location.protocol !== "file:") document.getElementById("vocabLink").href = "vocab.html";</script>
 </div>
@@ -394,6 +394,19 @@
     "rec-conflict": "녹음과 음성 인식이 부딪히는 것 같아요. 🎤는 인식만 할게요. 다시 눌러 주세요. (내 목소리는 결과 아래 🎙 버튼으로 따로 녹음)"
   };
   var FATAL = { "unsupported":1, "not-allowed":1, "service-not-allowed":1, "network":1, "audio-capture":1 };
+  var DIAG = '<a href="mic-test.html" style="color:var(--accent);font-weight:700">🔧 마이크 진단하기</a>';
+
+  // 카톡·삼성 인터넷 같은 곳에서 열었으면 알려주기
+  function browserWarn(){
+    var ua = navigator.userAgent || "", w = "";
+    if (/KAKAOTALK/i.test(ua)) w = "카카오톡";
+    else if (/NAVER/i.test(ua)) w = "네이버 앱";
+    else if (/SamsungBrowser/i.test(ua)) w = "삼성 인터넷";
+    else if (/Instagram|FBAN|FBAV|Line\//i.test(ua) || /; wv\)/.test(ua)) w = "다른 앱";
+    if (!w) return "";
+    return '<div class="tip">⚠️ 지금 <b>' + w + '</b> 안에서 열려 있어요. 발음 체크(🎤)는 <b>' +
+      (IS_ANDROID ? "Chrome" : "Safari") + '</b>에서 열어서 해 주세요.</div>';
+  }
   function errMsg(e){ return ERR[e] || ("인식 실패 (" + e + "). 다시 해 보세요."); }
 
   /* ---------- 채점 ---------- */
@@ -492,7 +505,7 @@
   function resHtml(i){
     var r = results[i];
     if (!r) return "";
-    if (r.err) return '<div class="res">⚠️ ' + esc(r.msg) + '</div>';
+    if (r.err) return '<div class="res">⚠️ ' + esc(r.msg) + '<br>' + DIAG + '</div>';
     var verdict = r.score >= 90 ? "👍 기계가 다 알아들었어요!"
       : r.score >= 70 ? "거의 다 왔어요. 빨간 단어만 다시!"
       : "빨간 단어를 🔊로 듣고 천천히 다시 해 봐요.";
@@ -544,7 +557,7 @@
       if (r.err === "aborted") return;
       var html;
       if (r.err){
-        html = '⚠️ ' + esc(errMsg(r.err));
+        html = '⚠️ ' + esc(errMsg(r.err)) + '<br>' + DIAG;
       } else {
         var hw = words(r.alts[0]);
         var tw = words(target)[0], ow = words(other)[0];
@@ -754,7 +767,7 @@
   function renderScript(){
     var d = day(), ls = lines();
     var html = '<div class="card">';
-    html += '<div class="tip">' + esc(tab === "B" ? d.tipB : d.tipA) + '</div>';
+    html += browserWarn() + '<div class="tip">' + esc(tab === "B" ? d.tipB : d.tipA) + '</div>';
     html += '<div class="ctrl">' +
       '<button class="btn" id="playAll">▶ 전체 듣기</button>' +
       '<button class="btn ghost" id="stopBtn">■ 멈춤</button>' +
@@ -812,7 +825,7 @@
   }
 
   function renderWords(){
-    var html = '<div class="card"><div class="tip">한국 사람이 제일 헷갈리는 소리 짝이에요. 🔊로 두 단어 차이를 듣고, 🎤로 한 단어씩 말해 보세요. ' +
+    var html = '<div class="card">' + browserWarn() + '<div class="tip">한국 사람이 제일 헷갈리는 소리 짝이에요. 🔊로 두 단어 차이를 듣고, 🎤로 한 단어씩 말해 보세요. ' +
       '단어 하나는 기계가 문맥으로 봐줄 수 없어서 <b>문장보다 훨씬 엄격해요</b>. 진짜 발음 연습은 여기서!</div>' +
       '<div class="vs" id="vs"></div>';
     PAIRS.forEach(function(pr, p){
@@ -849,6 +862,7 @@
       '<p class="small">💬 카톡으로 받은 링크는 카톡 안에서 열지 말고, <b>Chrome·Safari로 열기</b>를 눌러 주세요. 카톡 안에서는 마이크가 안 될 수 있어요.</p>' +
       '<p class="small">🏠 <b>홈 화면에 추가</b>해서 앱처럼 쓰세요. 안드로이드: Chrome ⋮ 메뉴 → 홈 화면에 추가 · 아이폰: Safari 공유 버튼 → 홈 화면에 추가. ' +
       '아이폰은 홈 화면 아이콘으로 쓰면 기록이 더 오래 남아요. 홈 화면 아이콘에서 🎤가 안 되면 Safari에서 여세요.</p>' +
+      '<p class="small">🔧 🎤가 계속 안 되면 <a href="mic-test.html" style="color:var(--accent)">마이크 진단</a> 페이지에서 원인을 확인하고, 결과를 복사해 선생님께 보내 주세요.</p>' +
       '<p class="small">🔄 새 대본이 안 보이면 10분쯤 뒤에 새로고침하세요. 맨 아래 "버전" 날짜로 새 버전인지 확인할 수 있어요.</p>' +
       '<p class="small">⚠️ <b>한글 발음</b>은 처음 감 잡을 때만 보세요. 계속 보면 한국식 발음이 굳어요.</p>' +
       '</div>';

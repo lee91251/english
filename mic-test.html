@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>마이크 진단</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --text:#1a1a1a; --muted:#6b7280;
+    --line:#e5e7eb; --accent:#3b6cff; --accent2:#eef2ff;
+    --good:#16a34a; --bad:#dc2626; --warn:#b45309;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1115; --card:#1a1d24; --text:#e8eaed; --muted:#9aa0aa;
+      --line:#2b2f38; --accent:#5b82ff; --accent2:#1c2230;
+      --good:#22c55e; --bad:#ef4444; --warn:#f59e0b;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕",sans-serif;-webkit-text-size-adjust:100%;}
+  .wrap{max-width:560px;margin:0 auto;padding:14px 14px 60px;}
+  h1{font-size:20px;margin:8px 0 6px;}
+  h2{font-size:16px;margin:0 0 8px;}
+  .small{font-size:13px;color:var(--muted);line-height:1.6;margin:4px 0;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;}
+  .btn{border:0;border-radius:10px;padding:12px 14px;font-size:15px;font-weight:700;cursor:pointer;
+    background:var(--accent);color:#fff;font-family:inherit;margin:4px 6px 4px 0;touch-action:manipulation;}
+  .btn.ghost{background:var(--accent2);color:var(--accent);}
+  .btn:disabled{opacity:.5;}
+  .meter{height:18px;background:var(--bg);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin:10px 0;}
+  .meter div{height:100%;width:0;background:var(--good);transition:width .08s;}
+  .msg{font-size:14px;line-height:1.6;margin-top:8px;}
+  .ok{color:var(--good);font-weight:700;} .no{color:var(--bad);font-weight:700;} .hm{color:var(--warn);font-weight:700;}
+  .info div{font-size:14px;line-height:1.8;}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px;
+    white-space:pre-wrap;word-break:break-all;margin:10px 0 0;min-height:20px;}
+  pre:empty{display:none;}
+  textarea{width:100%;min-height:140px;font-size:12px;margin-top:8px;border-radius:10px;border:1px solid var(--line);
+    background:var(--bg);color:var(--text);padding:8px;}
+  a{color:var(--accent);font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a id="back" href="./">← 대본으로</a>
+  <h1>🔧 마이크 진단</h1>
+  <p class="small">발음 체크(🎤)가 안 될 때 원인을 찾는 페이지예요. <b>1 → 2 → 3</b> 순서로 해 보고, 마지막에 <b>결과 복사</b>를 눌러 선생님께 붙여넣어 주세요.</p>
+
+  <div class="card">
+    <h2>1. 지금 쓰는 폰·브라우저</h2>
+    <div class="info" id="info"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. 마이크로 소리가 들어오나요?</h2>
+    <p class="small">버튼을 누르고 6초 동안 아무 말이나 하세요. 말할 때 막대가 움직여야 해요.</p>
+    <button class="btn" id="lvBtn">🎙 마이크 테스트</button>
+    <div class="meter"><div id="bar"></div></div>
+    <div class="msg" id="lvMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. 음성 인식이 되나요?</h2>
+    <p class="small">버튼을 누르고 바로 말하세요. 영어는 <b>"Hello, nice to meet you"</b>, 한국어는 <b>"안녕하세요 반갑습니다"</b>.</p>
+    <button class="btn" data-lang="en-US">영어로 테스트</button>
+    <button class="btn ghost" data-lang="ko-KR">한국어로 테스트</button>
+    <div class="msg" id="srMsg"></div>
+    <pre id="log"></pre>
+  </div>
+
+  <div class="card">
+    <h2>4. 결과 보내기</h2>
+    <button class="btn" id="copyBtn">📋 결과 복사</button>
+    <div class="msg" id="copyMsg"></div>
+    <textarea id="copyBox" readonly hidden></textarea>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var ua = navigator.userAgent || "";
+  var report = [];            // 복사용 기록
+  function note(s){ report.push(s); }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s || "").replace(/[&<>"]/g, function(m){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]; }); }
+
+  if (location.protocol === "file:") $("back").href = "대본.html";
+
+  /* ---------- 1. 기기·브라우저 ---------- */
+  var isAndroid = /Android/i.test(ua);
+  var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  function ver(re){ var m = ua.match(re); return m ? " " + m[1] : ""; }
+  function browserName(){
+    if (/KAKAOTALK/i.test(ua)) return "카카오톡 안 브라우저";
+    if (/NAVER/i.test(ua)) return "네이버 앱 안 브라우저";
+    if (/Instagram/i.test(ua)) return "인스타그램 안 브라우저";
+    if (/FBAN|FBAV/i.test(ua)) return "페이스북 안 브라우저";
+    if (/SamsungBrowser/i.test(ua)) return "삼성 인터넷" + ver(/SamsungBrowser\/([\d.]+)/);
+    if (/; wv\)/.test(ua)) return "앱 안 브라우저(웹뷰)";
+    if (/EdgA?\//.test(ua)) return "Edge" + ver(/EdgA?\/([\d.]+)/);
+    if (/CriOS\//.test(ua)) return "Chrome(아이폰)" + ver(/CriOS\/([\d.]+)/);
+    if (/Chrome\//.test(ua)) return "Chrome" + ver(/Chrome\/([\d.]+)/);
+    if (/Safari\//.test(ua) && /Version\//.test(ua)) return "Safari" + ver(/Version\/([\d.]+)/);
+    return "알 수 없음";
+  }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  var device = isAndroid ? "안드로이드" : isIOS ? "아이폰/아이패드" : "PC";
+  var bname = browserName();
+  var goodBrowser = isAndroid ? /^Chrome /.test(bname) : isIOS ? /^Safari/.test(bname) : true;
+  var yes = '<span class="ok">있음</span>', no = '<span class="no">없음</span>';
+  $("info").innerHTML =
+    '<div>기기: <b>' + device + '</b></div>' +
+    '<div>브라우저: <b>' + esc(bname) + '</b> ' + (goodBrowser ? '<span class="ok">✅</span>'
+      : '<span class="no">❌ ' + (isAndroid ? "Chrome" : "Safari") + '으로 열어 주세요</span>') + '</div>' +
+    '<div>음성 인식 기능: ' + (SR ? yes : no) + '</div>' +
+    '<div>마이크 기능: ' + (navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? yes : no) + '</div>' +
+    '<div>보안 연결(https): ' + (window.isSecureContext ? yes : no) + '</div>';
+  note("기기: " + device + " / 브라우저: " + bname + " / 인식기능: " + (SR ? "있음" : "없음") +
+    " / 마이크기능: " + (navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? "있음" : "없음") +
+    " / https: " + (window.isSecureContext ? "예" : "아니오"));
+  note("UA: " + ua);
+
+  /* ---------- 2. 마이크 소리 크기 ---------- */
+  var lvStream = null, ctx = null, raf = 0, maxLv = 0, lvLabel = "";
+  function stopMeter(showResult){
+    cancelAnimationFrame(raf);
+    if (lvStream){ lvStream.getTracks().forEach(function(t){ t.stop(); }); lvStream = null; }
+    if (ctx){ try { ctx.close(); } catch(e){} ctx = null; }
+    $("bar").style.width = "0";
+    $("lvBtn").disabled = false;
+    $("lvBtn").textContent = "🎙 마이크 테스트";
+    if (!showResult) return;
+    var m = maxLv >= 5
+      ? '<span class="ok">✅ 마이크 소리가 잘 들어와요.</span> (최대 ' + maxLv + '%)'
+      : '<span class="no">❌ 마이크 소리가 거의 안 들어와요.</span> (최대 ' + maxLv + '%) 블루투스 이어폰이 연결돼 있으면 끊어 보고, 통화 중이거나 다른 앱이 마이크를 쓰고 있지 않은지 확인해 주세요.';
+    $("lvMsg").innerHTML = m + (lvLabel ? '<br><span class="small">마이크 장치: ' + esc(lvLabel) + '</span>' : '');
+    note("마이크 테스트: 최대 " + maxLv + "% / 장치: " + (lvLabel || "(이름 없음)"));
+  }
+  $("lvBtn").addEventListener("click", function(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      $("lvMsg").innerHTML = '<span class="no">❌ 이 브라우저는 마이크 기능이 없어요.</span>'; note("마이크 테스트: 기능 없음"); return;
+    }
+    $("lvBtn").disabled = true;
+    $("lvMsg").textContent = "";
+    navigator.mediaDevices.getUserMedia({ audio:true }).then(function(s){
+      lvStream = s;
+      var tr = s.getAudioTracks()[0];
+      lvLabel = tr ? tr.label : "";
+      var AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC();
+      if (ctx.resume) ctx.resume();
+      var an = ctx.createAnalyser();
+      an.fftSize = 1024;
+      ctx.createMediaStreamSource(s).connect(an);
+      var buf = new Uint8Array(an.fftSize), t0 = Date.now();
+      maxLv = 0;
+      $("lvBtn").textContent = "말해 보세요… (6초)";
+      (function loop(){
+        an.getByteTimeDomainData(buf);
+        var sum = 0;
+        for (var i = 0; i < buf.length; i++){ var v = (buf[i] - 128) / 128; sum += v * v; }
+        var lv = Math.min(100, Math.round(Math.sqrt(sum / buf.length) * 400));
+        if (lv > maxLv) maxLv = lv;
+        $("bar").style.width = lv + "%";
+        if (Date.now() - t0 < 6000) raf = requestAnimationFrame(loop); else stopMeter(true);
+      })();
+    }).catch(function(e){
+      $("lvBtn").disabled = false;
+      var name = (e && e.name) || "오류";
+      $("lvMsg").innerHTML = '<span class="no">❌ 마이크를 열 수 없어요 (' + esc(name) + ').</span> ' +
+        (name === "NotAllowedError" ? "마이크 권한이 막혀 있어요. 주소창 옆 아이콘이나 폰 설정 → 앱 → " + (isAndroid ? "Chrome" : "Safari") + " → 권한에서 마이크를 허용해 주세요." : "");
+      note("마이크 테스트: 실패 " + name + " " + ((e && e.message) || ""));
+    });
+  });
+
+  /* ---------- 3. 음성 인식 단계별 기록 ---------- */
+  var srBtns = document.querySelectorAll("[data-lang]");
+  function setBtns(on){ srBtns.forEach(function(b){ b.disabled = !on; }); }
+  function srTest(lang){
+    if (!SR){ $("srMsg").innerHTML = '<span class="no">❌ 이 브라우저는 음성 인식 기능이 없어요.</span>'; note("[" + lang + "] 인식 기능 없음"); return; }
+    stopMeter(false);
+    var r = new SR(), ev = {}, text = "", err = null, t0 = Date.now(), ended = false;
+    r.lang = lang; r.interimResults = true; r.maxAlternatives = 1; r.continuous = false;
+    $("log").textContent = "";
+    $("srMsg").innerHTML = "🎤 듣는 중… 지금 말하세요";
+    setBtns(false);
+    function add(name, extra){
+      ev[name] = true;
+      var line = ((Date.now() - t0) / 1000).toFixed(1) + "초 " + name + (extra ? " " + extra : "");
+      $("log").textContent += line + "\n";
+      note("[" + lang + "] " + line);
+    }
+    ["start","audiostart","soundstart","speechstart","speechend","soundend","audioend","nomatch"].forEach(function(n){
+      r["on" + n] = function(){ add(n); };
+    });
+    r.onresult = function(e){
+      var s = "";
+      for (var i = 0; i < e.results.length; i++) s += e.results[i][0].transcript;
+      text = s;
+      add("result", '"' + s + '"' + (e.results[e.results.length - 1].isFinal ? " (최종)" : ""));
+    };
+    r.onerror = function(e){ err = e.error; add("error", e.error + (e.message ? " " + e.message : "")); };
+    r.onend = function(){
+      if (ended) return; ended = true;
+      add("end");
+      setBtns(true);
+      var m;
+      if (text) m = '<span class="ok">✅ 인식 성공!</span> "' + esc(text) + '"';
+      else if (err === "not-allowed" || err === "service-not-allowed") m = '<span class="no">❌ 음성 인식 권한이 막혀 있어요.</span> 주소창 옆 아이콘이나 폰 설정에서 마이크를 허용해 주세요.';
+      else if (err === "network") m = '<span class="no">❌ 음성 인식 서버에 연결을 못 했어요.</span> 인터넷 연결을 확인해 주세요.';
+      else if (err === "language-not-supported") m = '<span class="no">❌ 이 언어는 인식이 지원되지 않아요.</span>';
+      else if (!ev.audiostart) m = '<span class="no">❌ 음성 인식이 마이크를 열지 못했어요.</span> 통화·녹음·음성비서처럼 마이크를 쓰는 다른 앱이 켜져 있는지 확인해 주세요.';
+      else if (!ev.soundstart) m = '<span class="no">❌ 마이크는 열렸는데 소리가 안 들어와요.</span> 2번 테스트 결과도 확인해 주세요.';
+      else if (!ev.speechstart) m = '<span class="hm">⚠️ 소리는 들어오는데 말로 알아듣지 못했어요.</span> 폰을 입 가까이 대고 더 크게 말해 보세요.';
+      else m = '<span class="hm">⚠️ 말은 들렸는데 글자로 바꾸지 못했어요.</span> 폰의 음성 인식 서비스 문제일 수 있어요.';
+      if (!text && isIOS) m += '<br><span class="small">아이폰은 단계 표시가 일부 안 나올 수 있어요.</span>';
+      $("srMsg").innerHTML = m;
+      note("[" + lang + "] 판정: " + $("srMsg").textContent);
+    };
+    try { r.start(); } catch(e){ add("start 실패", e.message); r.onend(); return; }
+    setTimeout(function(){ if (!ended) try { r.stop(); } catch(e){} }, 10000);
+  }
+  srBtns.forEach(function(b){ b.addEventListener("click", function(){ srTest(b.getAttribute("data-lang")); }); });
+
+  /* ---------- 4. 결과 복사 ---------- */
+  $("copyBtn").addEventListener("click", function(){
+    var text = "[마이크 진단 결과]\n" + report.join("\n");
+    var box = $("copyBox");
+    box.value = text;
+    function fallback(){
+      box.hidden = false; box.focus(); box.select();
+      $("copyMsg").innerHTML = '아래 글을 <b>길게 눌러 전체 선택 → 복사</b>해 주세요.';
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){
+        $("copyMsg").innerHTML = '<span class="ok">✅ 복사됐어요!</span> 선생님(Claude) 대화창에 붙여넣어 주세요.';
+      }, fallback);
+    } else fallback();
+  });
+})();
+</script>
+</body>
+</html>
