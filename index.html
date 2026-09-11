@@ -136,7 +136,7 @@
 
   <div id="main"></div>
 
-  <p class="foot">버전 2026-09-11-3 · 수업 때마다 새 Day가 추가돼요. 한 달 뒤에도 계속 쓸 수 있어요.<br>
+  <p class="foot">버전 2026-09-11-4 · 수업 때마다 새 Day가 추가돼요. 한 달 뒤에도 계속 쓸 수 있어요.<br>
   핵심 표현은 <a id="vocabLink" href="단어장.html" style="color:var(--accent)"><b>📒 단어장</b></a>에 문장째 저장하세요.</p>
   <script>if (location.protocol !== "file:") document.getElementById("vocabLink").href = "vocab.html";</script>
 </div>
@@ -340,8 +340,10 @@
   // cb({ alts:[...], err:null|"코드", audio:url|null })
   function listen(cb){
     if (!SR){ cb({ alts:[], err:"unsupported", audio:null }); return; }
-    getStream().then(function(stream){
-      var rec = null, chunks = [], alts = [], err = null, finished = false, tm = null;
+    // 진단 페이지(mic-test.html)에서 안드로이드 성공이 확인된 방식과 맞춤: 버튼 누르면 바로 시작
+    if (noRecord) run(null); else getStream().then(run);
+    function run(stream){
+      var rec = null, chunks = [], alts = [], text = "", err = null, finished = false, tm = null;
       if (stream && window.MediaRecorder && !noRecord){
         try {
           rec = new MediaRecorder(stream);
@@ -351,12 +353,14 @@
       }
       var r = new SR();
       r.lang = "en-US";
-      r.interimResults = false;
+      r.interimResults = true;        // 진단 페이지에서 성공한 설정 (false일 때 안드로이드에서 결과가 안 왔음)
       r.maxAlternatives = 1;          // 1순위만 — 후하게 채점하지 않기
       r.continuous = false;
-      r.onresult = function(e){
-        var res = e.results[0];
-        if (res && res[0]) alts.push(res[0].transcript);
+      r.onresult = function(e){       // 마지막에 들어온 문장(최종 결과)을 씀
+        var s = "";
+        for (var k = 0; k < e.results.length; k++) s += e.results[k][0].transcript;
+        s = s.trim();
+        if (s) text = s;
       };
       r.onerror = function(e){ err = e.error || "unknown"; };
       r.onend = function(){
@@ -365,6 +369,7 @@
         clearTimeout(tm);
         if (currentRec === r) currentRec = null;
         // 녹음과 인식이 부딪히면(두 번 연속 못 들음) 녹음을 끄고 인식만
+        if (text) alts = [text];
         if (alts.length) recFail = 0;
         else if (rec && err !== "aborted" && err !== "not-allowed" && err !== "network"){
           recFail++;
@@ -381,7 +386,7 @@
       currentRec = r;
       tm = setTimeout(function(){ try { r.stop(); } catch(e){} }, 12000);
       try { r.start(); } catch(e){ err = "start"; r.onend(); }
-    });
+    }
   }
 
   var ERR = {
